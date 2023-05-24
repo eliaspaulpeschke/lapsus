@@ -38,13 +38,13 @@ def compare_changed_area(a, b, min_area, area_thresh, blur_before = (25,25), blu
     diff = cv.absdiff(a_blur, b_blur)
     diff_thresh = 255 - thresh(diff, blur=True, blur_size=blur_thresh)
     contours, _ = cv.findContours(diff_thresh, 1, 2)
-    #big_enough = [cnt for cnt in contours if cv.contourArea(cnt) > min_area]
-    #big_areas = [cv.contourArea(cnt) for cnt in big_enough]
-    big_areas = [cv.contourArea(cnt) for cnt in contours if cv.contourArea(cnt) > min_area]
+    big_enough = [cnt for cnt in contours if cv.contourArea(cnt) > min_area]
+    big_areas = [cv.contourArea(cnt) for cnt in big_enough]
+    #big_areas = [cv.contourArea(cnt) for cnt in contours if cv.contourArea(cnt) > min_area]
     area_sum = np.sum(big_areas)
-    #cont_source = a.copy()
-    #cont_img = cv.drawContours(cont_source, big_enough, -1, (0,0,255), 4)
-    return area_sum >= area_thresh #, cont_img
+    cont_source = a.copy()
+    cont_img = cv.drawContours(cont_source, big_enough, -1, (0,0,255), 4)
+    return area_sum >= area_thresh, cont_img
 
 
 def show(*args, size=(1024,768)):
@@ -57,12 +57,12 @@ def show(*args, size=(1024,768)):
 
 
 def main():
-    global verbose, logfile
+    global verbose, logfile, savenumber
     parser = argparse.ArgumentParser(prog='lapsus',description='adaptive timelapse utility for the raspberry pi', epilog='BOTTOM TEXT')
     parser.add_argument("--base-interval", type=float, default=1.0, help="base interval in which to capture an image and test if it is different than the last one, in seconds.")
     parser.add_argument("--max-interval", type=float, default = 0, help="capture an image after this interval in seconds, even if it is no different than before. if set to zero or not set, only capture on change")
     parser.add_argument("--change", type=float, default=1000.0, help="minimum change to justify saving an image. area of all changed areas big enough to count added together")
-    parser.add_argument("--chage-chunksize", type=float, default=3000.0, help="how big must a changed area be to cout as changes?")
+    parser.add_argument("--change-chunksize", type=float, default=1000.0, help="how big must a changed area be to cout as changes?")
     parser.add_argument("--directory", type=str, default="./", help="where to save images and log")
     parser.add_argument("-v", "--verbose", action='store_true')
     args = parser.parse_args()
@@ -70,7 +70,7 @@ def main():
     if verbose:
         print(args.change, args.max_interval, args.base_interval)
     if not(os.path.exists(args.directory)):
-        os.mkdirs(args.directory)
+        os.makedirs(args.directory)
     logfile = os.path.join(args.directory, ("lapsus-" + str(time.strftime('%d%m%y-%H%M%S') + ".log")))
     with open(logfile, "a") as log:
         log.write("Starting lapsus now")
@@ -78,9 +78,12 @@ def main():
     cam = Picamera2()
     cam.configure("still")
     last_image = capture(cam)
-    save_image(last_image)
+    save_image(last_image, args.directory)
     last_capture = time.time()
     last_save = last_capture
+    savenumber = 0
+    save_dir = os.path.join(directory, f"{time.strftime('%d%m%y-%H%M%S')}")
+    os.mkdir(save_dir)
     def compare(a, b):
         return compare_changed_area(a, b, args.change_chunksize, args.change)
     while True:
@@ -92,12 +95,13 @@ def main():
                 print(f"Captured. Seconds since last save {last_capture - last_save}.")
             if compare(last_image, cap) or ((last_capture - last_save) > args.max_interval and args.max_interval != 0):
                 last_save = last_capture
-                save_image(cap, args.directory)
+                save_image(cap, save_dir)
                 last_image = cap
 
 
 def save_image(im, directory, additional_info = ""):
-    filename = os.path.join(directory, f"{time.strftime('%d%m%y-%H%M%S')}-{math.modf(time.time())[0]}.jpg")
+    global savenumber
+    filename = os.path.join(directory, f"{time.strftime('%d%m%y-%H%M%S')}{savenumber}.jpg")
     if verbose:
         print("WRITING:", filename)
     with open(logfile, "a") as log:
