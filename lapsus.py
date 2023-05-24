@@ -69,7 +69,7 @@ def main():
     verbose = args.verbose
     if verbose:
         print(args.change, args.max_interval, args.base_interval)
-    if not(os.exists(args.directory)):
+    if not(os.path.exists(args.directory)):
         os.mkdirs(args.directory)
     logfile = os.path.join(args.directory, ("lapsus-" + str(time.strftime('%d%m%y-%H%M%S') + ".log")))
     with open(logfile, "a") as log:
