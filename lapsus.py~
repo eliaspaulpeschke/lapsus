@@ -103,5 +103,5 @@ def save_image(im, directory, additional_info = ""):
         log.write(filename + " " + additional_info + "\n")
     cv.imwrite(filename,im)
 
-if __name__ == "__main__":{time.strftime('%d%m%y-%H%M%S')}-{math.modf(time.time())[0]}
+if __name__ == "__main__":
     main()

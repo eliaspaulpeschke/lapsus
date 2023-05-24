@@ -62,7 +62,7 @@ def main():
     parser.add_argument("--max-interval", type=float, default = 0, help="capture an image after this interval in seconds, even if it is no different than before. if set to zero or not set, only capture on change")
     parser.add_argument("--change", type=float, default=1000.0, help="minimum change to justify saving an image. area of all changed areas big enough to count added together")
     parser.add_argument("--chage-chunksize", type=float, default=3000.0, help="how big must a changed area be to cout as changes?")
-    parser.add_argument("--directory", type=string, default="./", help="where to save images and log")
+    parser.add_argument("--directory", type=str, default="./", help="where to save images and log")
     parser.add_argument("-v", "--verbose", action='store_true')
     args = parser.parse_args()
     verbose = args.verbose
