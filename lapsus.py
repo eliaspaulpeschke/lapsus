@@ -78,7 +78,7 @@ def main():
     cam = Picamera2()
     cam.configure("still")
     last_image = capture(cam)
-    save_image(last_image)
+    save_image(last_image, args.directory)
     last_capture = time.time()
     last_save = last_capture
     def compare(a, b):
