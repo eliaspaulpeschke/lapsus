@@ -57,17 +57,29 @@ def show(*args, size=(1024,768)):
     cv.waitKey(0)
     cv.destroyAllWindows()
 
+def handle_args():
+    parser = argparse.ArgumentParser(prog='lapsus',
+            description='adaptive timelapse utility for the raspberry pi', epilog='BOTTOM TEXT')
+    parser.add_argument("--base-interval", type=float, default=1.0, 
+            help="base interval in which to capture an image and test if it is"\ 
+                  "different than the last one, in seconds.")
+    parser.add_argument("--max-interval", type=float, default = 0, 
+            help="capture an image after this interval in seconds,"\ 
+                  "even if it is no different than before. if set to zero or not set,"\ 
+                  "only capture on change")
+    parser.add_argument("--change", type=float, default=1000.0, 
+            help="minimum change to justify saving an image."\ 
+                  "area of all changed areas big enough to count added together")
+    parser.add_argument("--change-chunksize", type=float, default=1000.0, 
+            help="how big must a changed area be to cout as changes?")
+    parser.add_argument("--directory", type=str, default="./", 
+            help="where to save images and log")
+    parser.add_argument("-v", "--verbose", action='store_true')
+    return parser.parse_args()
 
 def main():
     global verbose, logfile
-    parser = argparse.ArgumentParser(prog='lapsus',description='adaptive timelapse utility for the raspberry pi', epilog='BOTTOM TEXT')
-    parser.add_argument("--base-interval", type=float, default=1.0, help="base interval in which to capture an image and test if it is different than the last one, in seconds.")
-    parser.add_argument("--max-interval", type=float, default = 0, help="capture an image after this interval in seconds, even if it is no different than before. if set to zero or not set, only capture on change")
-    parser.add_argument("--change", type=float, default=1000.0, help="minimum change to justify saving an image. area of all changed areas big enough to count added together")
-    parser.add_argument("--change-chunksize", type=float, default=1000.0, help="how big must a changed area be to cout as changes?")
-    parser.add_argument("--directory", type=str, default="./", help="where to save images and log")
-    parser.add_argument("-v", "--verbose", action='store_true')
-    args = parser.parse_args()
+    args = handle_args()
     verbose = args.verbose
     if verbose:
         print(args.change, args.max_interval, args.base_interval)
