@@ -90,7 +90,7 @@ def handle_args():
 def get_cam():
     if importlib.util.find_spec("picamera2") is not None:
         from picamera2 import Picamera2
-        cam = Picamera2
+        cam = Picamera2()
         cam.configure("still")
         return cam
     elif debug:
