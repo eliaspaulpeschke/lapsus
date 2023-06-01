@@ -81,7 +81,7 @@ def handle_args():
             help="where to save images and log")
     parser.add_argument("-v", "--verbose", action='store_true')
     parser.add_argument("-d", "--debug", action="store_true")
-    parser.add_argument("--force-dummycam", action="story_true", help="force using a dummy camera - for debugging")
+    parser.add_argument("--force-dummycam", action="store_true", help="force using a dummy camera - for debugging")
     parser.add_argument("--log", action="store_true", help="logs absolute thresholded difference for each image if set")
     args = parser.parse_args()
     verbose = args.verbose
