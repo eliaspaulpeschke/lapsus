@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
+import importlib.util
 import cv2 as cv
 import time
 import argparse
@@ -7,6 +8,8 @@ import math
 import os
 
 verbose = False
+debug = False
+log = False
 savenumber = 0
 
 def capture(cam):
@@ -58,47 +61,77 @@ def show(*args, size=(1024,768)):
     cv.destroyAllWindows()
 
 def handle_args():
+    global verbose, debug, log
     parser = argparse.ArgumentParser(prog='lapsus',
             description='adaptive timelapse utility for the raspberry pi', epilog='BOTTOM TEXT')
     parser.add_argument("--base-interval", type=float, default=1.0, 
-            help="base interval in which to capture an image and test if it is"\ 
-                  "different than the last one, in seconds.")
+            help="base interval in which to capture an image and test if it is"\
+                    "different than the last one, in seconds.")
     parser.add_argument("--max-interval", type=float, default = 0, 
-            help="capture an image after this interval in seconds,"\ 
-                  "even if it is no different than before. if set to zero or not set,"\ 
-                  "only capture on change")
+            help="capture an image after this interval in seconds,"\
+                    "even if it is no different than before. if set to zero or not set,"\
+                    "only capture on change")
     parser.add_argument("--change", type=float, default=1000.0, 
-            help="minimum change to justify saving an image."\ 
-                  "area of all changed areas big enough to count added together")
+            help="minimum change to justify saving an image."\
+                    "area of all changed areas big enough to count added together")
     parser.add_argument("--change-chunksize", type=float, default=1000.0, 
             help="how big must a changed area be to cout as changes?")
     parser.add_argument("--directory", type=str, default="./", 
             help="where to save images and log")
     parser.add_argument("-v", "--verbose", action='store_true')
-    return parser.parse_args()
+    parser.add_argument("-d", "--debug", action="store_true")
+    parser.add_argument("--log", action="store_true", help="logs absolute thresholded difference for each image if set")
+    args = parser.parse_args()
+    verbose = args.verbose
+    debug = args.debug
+    log = args.log
+    return args
+
+def get_cam():
+    if importlib.util.find_spec("picamera2") is not None:
+        from picamera2 import Picamera2
+        cam = Picamera2
+        cam.configure("still")
+        return cam
+    elif debug:
+        print("WARNING! Picamera2 was not found. Using a dummy camera that will only capture black images")
+        from PIL import Image
+        class Cam():
+            def __init__(self):
+                pass
+            def capture_image(self):
+                return Image.new('RGB', (100,100))
+            def start(self):
+                pass
+            def stop(self):
+                pass
+        return Cam()
+    else:
+        raise ModuleNotFoundError("Could not find picamera2. Try debug flag for testing without a camera")
 
 def main():
-    global verbose, logfile
+    global logfile
     args = handle_args()
-    verbose = args.verbose
     if verbose:
         print(args.change, args.max_interval, args.base_interval)
     if not(os.path.exists(args.directory)):
         os.makedirs(args.directory)
-    logfile = os.path.join(args.directory, ("lapsus-" + str(time.strftime('%d%m%y-%H%M%S') + ".log")))
-    with open(logfile, "a") as log:
-        log.write("Starting lapsus now")
-    from picamera2 import Picamera2
-    cam = Picamera2()
-    cam.configure("still")
+    if log:
+        logfile = os.path.join(args.directory, ("lapsus-" + str(time.strftime('%d%m%y-%H%M%S') + ".log")))
+        with open(logfile, "a") as logf:
+            logf.write("Starting lapsus now")
+    save_dir = os.path.join(args.directory, f"{time.strftime('%d%m%y-%H%M%S')}")
+    os.mkdir(save_dir)
+    cam = get_cam()
+    def compare(a, b):
+        return compare_changed_area(a, b, args.change_chunksize, args.change)
+    mainloop(compare, cam, save_dir, args)
+  
+def mainloop(compare, cam, save_dir, args):
     last_image = capture(cam)
     last_capture = time.time()
     last_save = last_capture
-    save_dir = os.path.join(args.directory, f"{time.strftime('%d%m%y-%H%M%S')}")
-    os.mkdir(save_dir)
     save_image(last_image, save_dir)
-    def compare(a, b):
-        return compare_changed_area(a, b, args.change_chunksize, args.change)
     while True:
         start_time = time.time()
         if (start_time - last_capture) > args.base_interval:
@@ -108,19 +141,20 @@ def main():
                 print(f"Captured. Seconds since last save {last_capture - last_save}.")
             if compare(last_image, cap) or ((last_capture - last_save) > args.max_interval and args.max_interval != 0):
                 last_save = last_capture
-                norm, diff = compare_xor(last_image, cap)
+                norm, _ = compare_xor(last_image, cap)
                 save_image(cap, save_dir, f" mean difference: {norm}")
                 last_image = cap
 
 
 def save_image(im, directory, additional_info = ""):
     global savenumber
-    filename = os.path.join(directory, f"{time.strftime('%d%m%y-%H%M%S')}{savenumber}.jpg")
+    filename = os.path.join(directory, f"{savenumber}-{str(time.time()).replace('.','-')}.jpg")
     savenumber += 1
     if verbose:
         print("WRITING:", filename)
-    with open(logfile, "a") as log:
-        log.write(filename + " " + additional_info + "\n")
+    if log:
+        with open(logfile, "a") as logf:
+            logf.write(filename + " " + additional_info + "\n")
     cv.imwrite(filename,im)
 
 if __name__ == "__main__":
