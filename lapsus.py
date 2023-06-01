@@ -11,6 +11,7 @@ verbose = False
 debug = False
 log = False
 savenumber = 0
+force_dummy = False
 
 def capture(cam):
     cam.start()
@@ -61,7 +62,7 @@ def show(*args, size=(1024,768)):
     cv.destroyAllWindows()
 
 def handle_args():
-    global verbose, debug, log
+    global verbose, debug, log, force_dummy
     parser = argparse.ArgumentParser(prog='lapsus',
             description='adaptive timelapse utility for the raspberry pi', epilog='BOTTOM TEXT')
     parser.add_argument("--base-interval", type=float, default=1.0, 
@@ -80,20 +81,22 @@ def handle_args():
             help="where to save images and log")
     parser.add_argument("-v", "--verbose", action='store_true')
     parser.add_argument("-d", "--debug", action="store_true")
+    parser.add_argument("--force-dummycam", action="story_true", help="force using a dummy camera - for debugging")
     parser.add_argument("--log", action="store_true", help="logs absolute thresholded difference for each image if set")
     args = parser.parse_args()
     verbose = args.verbose
     debug = args.debug
     log = args.log
+    force_dummy = args.force_dummycam
     return args
 
 def get_cam():
-    if importlib.util.find_spec("picamera2") is not None:
+    if (not force_dummy) and (importlib.util.find_spec("picamera2") is not None):
         from picamera2 import Picamera2
         cam = Picamera2()
         cam.configure("still")
         return cam
-    elif debug:
+    elif debug or force_dummy:
         print("WARNING! Picamera2 was not found. Using a dummy camera that will only capture black images")
         from PIL import Image
         class Cam():
